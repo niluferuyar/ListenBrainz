@@ -8,7 +8,7 @@ Establish the analysis scope on the `listenbrainz1.listenbrainz.listen_analysis`
 ## 2. Dataset Metadata & Schema
 - **BigQuery Table**: `listenbrainz1.listenbrainz.listen_analysis` (Location: `US`)
 - **Total Unfiltered Rows**: `146,914,257`
-- **Analysis Window**: `2006-01-01 00:00:00 UTC` $\le$ `listened_at` $<$ `2018-01-01 00:00:00 UTC`
+- **Analysis Window**: `2006-01-01 00:00:00 UTC <= listened_at < 2018-01-01 00:00:00 UTC`
 - **Scoped Rows (2006–2017)**: `138,695,873` (**94.41%** of the entire table)
 
 | Column | Type | Description |

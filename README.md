@@ -46,9 +46,11 @@ ListenBrainz/
 ### Step 2: Completed Inactivity Gap Statistics (`inactive_days >= 1`)
 Multiple listens on the same UTC calendar day are collapsed into a single active day per user. Completed inactivity gaps between consecutive active days are measured as:
 
-$$\text{inactive\_days} = \text{DATE\_DIFF}(\text{next\_active\_date}, \text{active\_date}, \text{DAY}) - 1$$
+```sql
+inactive_days = DATE_DIFF(next_active_date, active_date, DAY) - 1
+```
 
-Because back-to-back active days ($\text{inactive\_days} = 0$, $84.04\%$ of transitions) represent continuous daily listening rather than inactivity, summary statistics are computed over **strictly positive completed inactivity gaps ($\text{inactive\_days} \ge 1$)**:
+Because back-to-back active days (`inactive_days = 0`, **84.04%** of transitions) represent continuous daily listening rather than inactivity, summary statistics are computed over **strictly positive completed inactivity gaps (`inactive_days >= 1`)**:
 
 | Metric | Value |
 | :--- | ---: |
@@ -56,17 +58,17 @@ Because back-to-back active days ($\text{inactive\_days} = 0$, $84.04\%$ of tran
 | **Distinct Users Contributing** | **1,972** |
 | **Mean (`inactive_days`)** | **4.71** days |
 | **Standard Deviation (`inactive_days`)** | **35.17** days |
-| **Median ($P_{50}$)** | **2** days |
-| **$P_{75}$ Percentile** | **3** days |
-| **$P_{90}$ Percentile** | **6** days |
-| **$P_{95}$ Percentile** | **11** days |
-| **$P_{99}$ Percentile** | **43** days |
-| **Gaps $> 30$ Days** | **1.46%** *(6,439 gaps)* |
-| **Gaps $> 60$ Days** | **0.70%** *(3,106 gaps)* |
-| **Gaps $> 90$ Days** | **0.47%** *(2,092 gaps)* |
-| **Gaps $> 180$ Days** | **0.23%** *(1,029 gaps)* |
+| **Median (P50)** | **2** days |
+| **P75 Percentile** | **3** days |
+| **P90 Percentile** | **6** days |
+| **P95 Percentile** | **11** days |
+| **P99 Percentile** | **43** days |
+| **Gaps > 30 Days** | **1.46%** *(6,439 gaps)* |
+| **Gaps > 60 Days** | **0.70%** *(3,106 gaps)* |
+| **Gaps > 90 Days** | **0.47%** *(2,092 gaps)* |
+| **Gaps > 180 Days** | **0.23%** *(1,029 gaps)* |
 
 ![Completed Inactivity Gap Distribution — Linear Scale](assets/figures/inactivity_gap_distribution_linear.svg)
 
-- Full step-by-step analysis, $\log_{10}$ and 30–180d tail charts, and user-level return breakdowns: [`docs/02_inactivity_gap_analysis.md`](docs/02_inactivity_gap_analysis.md)
+- Full step-by-step analysis, Log10 and 30–180d tail charts, and user-level return breakdowns: [`docs/02_inactivity_gap_analysis.md`](docs/02_inactivity_gap_analysis.md)
 - Interactive chart widget: [`assets/interactive/inactivity_gaps_chart.html`](assets/interactive/inactivity_gaps_chart.html)
