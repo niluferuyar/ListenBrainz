@@ -46,11 +46,7 @@ ListenBrainz/
 ### Step 2: Completed Inactivity Gap Statistics (`inactive_days >= 1`)
 Multiple listens on the same UTC calendar day are collapsed into a single active day per user. Completed inactivity gaps between consecutive active days are measured as:
 
-$$
-\text{inactive\_days} =
-\text{DATE\_DIFF}(\text{next\_active\_date},
-\text{active\_date}, \text{DAY}) - 1
-$$
+$$\text{inactive\_days} = \text{DATE\_DIFF}(\text{next\_active\_date}, \text{active\_date}, \text{DAY}) - 1$$
 
 Because back-to-back active days ($\text{inactive\_days} = 0$, $84.04\%$ of transitions) represent continuous daily listening rather than inactivity, summary statistics are computed over **strictly positive completed inactivity gaps ($\text{inactive\_days} \ge 1$)**:
 
