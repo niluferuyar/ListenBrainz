@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-3">
+  <div class="bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+    <!-- Header & Controls -->
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <div>
+        <h2 class="text-[var(--foreground)] font-semibold text-base leading-tight">
+          Completed Inactivity Gap Distribution (inactive_days &ge; 1, 2006–2017)
+        </h2>
+        <p id="chart-subtitle" class="text-[var(--muted-foreground)] text-xs mt-0.5">
+          Distinct user count on vertical axis across 1–180 days (linear scale, N = 1,972 users)
+        </p>
+      </div>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button id="btn-linear" onclick="setMode('linear')" class="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] transition-colors">
+          Linear (1–180d)
+        </button>
+        <button id="btn-log" onclick="setMode('log')" class="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] transition-colors">
+          Log Scale (1–180d)
+        </button>
+        <button id="btn-tail" onclick="setMode('tail')" class="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] transition-colors">
+          Linear Tail (30–180d)
+        </button>
+      </div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="relative w-full" style="height: 295px;">
+      <canvas id="gapChart" class="w-full h-full cursor-crosshair"></canvas>
+      <!-- Tooltip -->
+      <div id="tooltip" class="hidden pointer-events-none absolute z-10 bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-lg px-3 py-2 shadow-md text-xs" style="min-width: 225px;"></div>
+    </div>
+
+    <!-- Legend / Key Callouts -->
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2.5 border-t border-[var(--border)] text-xs text-[var(--muted-foreground)]">
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-3 h-0.5 inline-block rounded" style="background:#3b82f6;"></span>
+          <span>Distinct Users (Y-Axis)</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 inline-block rounded-full" style="background:#10b981;"></span>
+          <span>Percentiles (P50=2d, P75=3d, P90=6d, P95=11d, P99=43d)</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-3 h-0.5 inline-block" style="border-top: 2px dashed #f59e0b;"></span>
+          <span>Thresholds (30d / 60d / 90d / 180d)</span>
+        </span>
+      </div>
+      <div class="font-medium text-[var(--foreground)]">
+        Total: 441,144 gaps | 1,972 users
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // [day, user_count, gap_count] for inactive_days >= 1
+    const rawData = [
+      [1,1935,216321],[2,1854,90331],[3,1742,41961],[4,1667,24035],[5,1592,15654],[6,1471,10523],[7,1385,6686],[8,1279,4848],[9,1178,4008],
+      [10,1058,3102],[11,954,2471],[12,939,2278],[13,889,1906],[14,756,1441],[15,679,1163],[16,626,1033],[17,592,942],[18,527,825],[19,507,744],
+      [20,478,685],[21,405,560],[22,352,459],[23,314,427],[24,326,415],[25,304,389],[26,284,348],[27,282,345],[28,238,291],[29,228,275],
+      [30,201,239],[31,202,239],[32,188,217],[33,184,215],[34,177,208],[35,144,164],[36,137,148],[37,122,131],[38,146,158],[39,130,137],
+      [40,134,146],[41,106,119],[42,107,119],[43,84,90],[44,96,104],[45,100,104],[46,82,85],[47,80,82],[48,85,91],[49,81,84],
+      [50,67,70],[51,59,62],[52,73,78],[53,62,65],[54,63,64],[55,72,75],[56,69,69],[57,50,55],[58,54,56],[59,45,48],
+      [60,49,50],[61,51,51],[62,46,47],[63,53,58],[64,35,36],[65,28,29],[66,45,45],[67,41,41],[68,44,48],[69,31,32],
+      [70,28,28],[71,38,39],[72,26,27],[73,34,34],[74,30,32],[75,37,37],[76,41,42],[77,21,21],[78,32,34],[79,44,46],
+      [80,27,27],[81,25,26],[82,28,28],[83,36,37],[84,19,19],[85,19,20],[86,23,23],[87,26,27],[88,28,28],[89,23,24],
+      [90,28,28],[91,26,27],[92,17,17],[93,24,25],[94,28,29],[95,15,15],[96,19,19],[97,30,30],[98,26,26],[99,18,19],
+      [100,24,24],[101,15,15],[102,13,13],[103,11,11],[104,13,13],[105,20,20],[106,10,10],[107,13,13],[108,16,16],[109,18,18],
+      [110,16,16],[111,13,13],[112,12,12],[113,19,19],[114,11,12],[115,19,20],[116,24,24],[117,12,12],[118,24,26],[119,14,14],
+      [120,15,15],[121,14,14],[122,7,7],[123,13,13],[124,18,18],[125,14,14],[126,10,10],[127,14,14],[128,11,11],[129,12,13],
+      [130,13,13],[131,15,15],[132,10,11],[133,14,14],[134,7,7],[135,5,5],[136,11,11],[137,8,8],[138,7,7],[139,11,11],
+      [140,9,9],[141,11,11],[142,6,6],[143,10,10],[144,9,9],[145,12,13],[146,15,15],[147,5,5],[148,3,3],[149,10,10],
+      [150,5,5],[151,7,7],[152,8,8],[153,5,5],[154,10,10],[155,8,8],[156,10,10],[157,6,6],[158,7,7],[159,7,7],
+      [160,6,6],[161,9,9],[162,10,10],[163,9,9],[164,3,3],[165,4,4],[166,8,9],[167,8,8],[168,3,3],[169,7,7],
+      [170,11,11],[171,9,9],[172,7,7],[173,5,5],[174,6,6],[175,9,9],[176,3,3],[177,7,7],[178,5,5],[179,5,5],[180,5,5]
+    ];
+
+    const TOTAL_USERS = 1972;
+    const TOTAL_GAPS = 441144;
+    let cumGaps = 0;
+
+    const dataPoints = rawData.map(([day, users, gaps]) => {
+      cumGaps += gaps;
+      return {
+        day,
+        users,
+        gaps,
+        userPct: (users / TOTAL_USERS) * 100,
+        cumGapPct: (cumGaps / TOTAL_GAPS) * 100,
+        exceedGapPct: ((TOTAL_GAPS - cumGaps) / TOTAL_GAPS) * 100
+      };
+    });
+
+    let currentMode = 'linear'; // 'linear' | 'log' | 'tail'
+    const canvas = document.getElementById('gapChart');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+
+    function updateButtons() {
+      const modes = ['linear', 'log', 'tail'];
+      modes.forEach(m => {
+        const btn = document.getElementById('btn-' + m);
+        if (m === currentMode) {
+          btn.style.backgroundColor = '#3b82f6';
+          btn.style.color = '#ffffff';
+          btn.style.borderColor = '#3b82f6';
+        } else {
+          btn.style.backgroundColor = 'transparent';
+          btn.style.color = 'inherit';
+          btn.style.borderColor = '';
+        }
+      });
+
+      const sub = document.getElementById('chart-subtitle');
+      if (currentMode === 'linear') {
+        sub.textContent = 'Distinct user count on vertical axis across 1–180 days (linear scale, N = 1,972 users)';
+      } else if (currentMode === 'log') {
+        sub.textContent = 'Distinct user count on vertical axis across 1–180 days (log10 scale, 3 to 1,935 users)';
+      } else {
+        sub.textContent = 'Zoomed linear user count for the 30–180 day tail (201 users at 30d down to 5 users at 180d)';
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      updateButtons();
+      drawChart();
+    }
+
+    function getFilteredData() {
+      if (currentMode === 'tail') return dataPoints.filter(d => d.day >= 30 && d.day <= 180);
+      return dataPoints.filter(d => d.day >= 1 && d.day <= 180);
+    }
+
+    let chartGeom = null;
+
+    function drawChart(hoverIndex = null) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const isLight = document.documentElement.classList.contains('light');
+      const gridColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.09)';
+      const axisTextColor = isLight ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.68)';
+
+      const pad = { top: 22, right: 26, bottom: 34, left: 56 };
+      const w = rect.width - pad.left - pad.right;
+      const h = rect.height - pad.top - pad.bottom;
+
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const pts = getFilteredData();
+      const minX = pts[0].day;
+      const maxX = pts[pts.length - 1].day;
+
+      function xPos(day) {
+        return pad.left + ((day - minX) / (maxX - minX)) * w;
+      }
+
+      function yPos(d) {
+        if (currentMode === 'linear') {
+          const maxLin = 2050;
+          return pad.top + h - (d.users / maxLin) * h;
+        } else if (currentMode === 'log') {
+          const minLog = Math.log10(2);
+          const maxLog = Math.log10(2200);
+          const valLog = Math.log10(Math.max(d.users, 1));
+          return pad.top + h - ((valLog - minLog) / (maxLog - minLog)) * h;
+        } else {
+          const maxTail = 225;
+          return pad.top + h - (d.users / maxTail) * h;
+        }
+      }
+
+      chartGeom = { pad, w, h, pts, minX, maxX, xPos, yPos };
+
+      // Draw Horizontal Grid & Y Labels (User Count)
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      let yTicks = [];
+      if (currentMode === 'linear') {
+        yTicks = [
+          { val: 0, label: '0' },
+          { val: 500, label: '500' },
+          { val: 1000, label: '1,000' },
+          { val: 1500, label: '1,500' },
+          { val: 2000, label: '2,000' }
+        ];
+      } else if (currentMode === 'log') {
+        yTicks = [
+          { val: 3, label: '3' },
+          { val: 10, label: '10' },
+          { val: 30, label: '30' },
+          { val: 100, label: '100' },
+          { val: 500, label: '500' },
+          { val: 1935, label: '1,935' }
+        ];
+      } else {
+        yTicks = [
+          { val: 0, label: '0' },
+          { val: 50, label: '50' },
+          { val: 100, label: '100' },
+          { val: 150, label: '150' },
+          { val: 200, label: '200' }
+        ];
+      }
+
+      yTicks.forEach(t => {
+        const y = yPos({ users: t.val });
+        if (y >= pad.top - 2 && y <= pad.top + h + 2) {
+          ctx.strokeStyle = gridColor;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(pad.left + w, y);
+          ctx.stroke();
+
+          ctx.fillStyle = axisTextColor;
+          ctx.fillText(t.label, pad.left - 8, y);
+        }
+      });
+
+      // Draw X Ticks (up to 180d)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const xTickDays = currentMode === 'tail'
+        ? [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
+        : [1, 15, 30, 60, 90, 120, 150, 180];
+
+      xTickDays.forEach(day => {
+        if (day >= minX && day <= maxX) {
+          const x = xPos(day);
+          ctx.strokeStyle = gridColor;
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, pad.top + h);
+          ctx.stroke();
+
+          ctx.fillStyle = axisTextColor;
+          ctx.fillText(day + 'd', x, pad.top + h + 8);
+        }
+      });
+
+      // Draw Churn Threshold vertical dashed lines (30d, 60d, 90d, 180d)
+      const thresholds = [
+        { day: 30, label: '30d (>1.46%)' },
+        { day: 60, label: '60d (>0.70%)' },
+        { day: 90, label: '90d (>0.47%)' },
+        { day: 180, label: '180d (>0.23%)' }
+      ];
+      thresholds.forEach(th => {
+        if (th.day >= minX && th.day <= maxX) {
+          const x = xPos(th.day);
+          ctx.save();
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, pad.top + h);
+          ctx.stroke();
+
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = '12px sans-serif';
+          const isRightEdge = th.day >= maxX - 15;
+          ctx.textAlign = isRightEdge ? 'right' : 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(th.label, isRightEdge ? x - 5 : x + 5, pad.top + 3);
+          ctx.restore();
+        }
+      });
+
+      // Area fill under the line
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + h);
+      grad.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
+      grad.addColorStop(1, 'rgba(59, 130, 246, 0.01)');
+
+      ctx.beginPath();
+      pts.forEach((p, idx) => {
+        const x = xPos(p.day);
+        const y = yPos(p);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(xPos(pts[pts.length - 1].day), pad.top + h);
+      ctx.lineTo(xPos(pts[0].day), pad.top + h);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Main Line
+      ctx.beginPath();
+      pts.forEach((p, idx) => {
+        const x = xPos(p.day);
+        const y = yPos(p);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Highlight Percentile Points
+      const percentiles = [
+        { day: 2, label: 'P50 (2d: 1,854u)', dy: 4 },
+        { day: 6, label: 'P90 (6d: 1,471u)', dy: 0 },
+        { day: 11, label: 'P95 (11d: 954u)', dy: 0 },
+        { day: 43, label: 'P99 (43d: 84u)', dy: -10 }
+      ];
+      percentiles.forEach(pInfo => {
+        const match = pts.find(d => d.day === pInfo.day);
+        if (match) {
+          const x = xPos(match.day);
+          const y = yPos(match);
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = isLight ? '#047857' : '#34d399';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pInfo.label, x + 7, y + pInfo.dy);
+        }
+      });
+
+      // Hover state
+      if (hoverIndex !== null && pts[hoverIndex]) {
+        const hp = pts[hoverIndex];
+        const hx = xPos(hp.day);
+        const hy = yPos(hp);
+
+        ctx.save();
+        ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hx, pad.top);
+        ctx.lineTo(hx, pad.top + h);
+        ctx.stroke();
+
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!chartGeom) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      const { pad, w, pts, minX, maxX } = chartGeom;
+      if (mx < pad.left || mx > pad.left + w) {
+        tooltip.classList.add('hidden');
+        drawChart(null);
+        return;
+      }
+
+      const approxDay = Math.round(minX + ((mx - pad.left) / w) * (maxX - minX));
+      const idx = pts.findIndex(p => p.day === approxDay);
+      if (idx === -1) return;
+
+      drawChart(idx);
+      const d = pts[idx];
+
+      tooltip.innerHTML = `
+        <div class="font-semibold mb-1">Inactive Gap: ${d.day} ${d.day === 1 ? 'day' : 'days'}</div>
+        <div class="flex justify-between gap-3">
+          <span class="text-[var(--muted-foreground)]">Distinct Users:</span>
+          <span class="font-mono font-semibold">${d.users.toLocaleString()} (${d.userPct.toFixed(1)}%)</span>
+        </div>
+        <div class="flex justify-between gap-3">
+          <span class="text-[var(--muted-foreground)]">Completed Gaps:</span>
+          <span class="font-mono font-medium">${d.gaps.toLocaleString()}</span>
+        </div>
+        <div class="flex justify-between gap-3">
+          <span class="text-[var(--muted-foreground)]">Cumulative Gaps:</span>
+          <span class="font-mono font-medium">${d.cumGapPct.toFixed(2)}%</span>
+        </div>
+        <div class="flex justify-between gap-3">
+          <span class="text-[var(--muted-foreground)]">Gaps &gt; ${d.day}d:</span>
+          <span class="font-mono font-medium">${d.exceedGapPct.toFixed(2)}%</span>
+        </div>
+      `;
+      tooltip.classList.remove('hidden');
+
+      let tx = mx + 14;
+      if (tx + 230 > rect.width) tx = mx - 230;
+      let ty = Math.max(12, Math.min(my - 30, rect.height - 115));
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      tooltip.classList.add('hidden');
+      drawChart(null);
+    });
+
+    window.addEventListener('resize', () => drawChart());
+    updateButtons();
+    setTimeout(() => drawChart(), 30);
+  </script>
+</body>
+</html>
