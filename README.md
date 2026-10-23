@@ -10,19 +10,20 @@ Descriptive and percentile analysis of user listening activity in the `listenbra
 ListenBrainz/
 ├── README.md                                        # Project overview & executive summary
 ├── docs/
-│   ├── 01_data_scope_and_record_counts.md           # Step 1: Dataset scope & yearly record counts (2006–2017)
+│   ├── 01_data_scope_and_record_counts.md           # Step 1: Dataset scope, yearly record & user counts (2006–2017)
 │   └── 02_inactivity_gap_analysis.md                # Step 2: Completed inactivity gap stats, percentiles & distributions
 ├── sql/
-│   ├── 01_yearly_record_counts.sql                  # BigQuery SQL: Yearly record counts (2006–2017)
+│   ├── 01_yearly_record_counts.sql                  # BigQuery SQL: Yearly record & distinct user counts (2006–2017)
 │   ├── 02_inactivity_gap_summary_stats.sql          # BigQuery SQL: Inactivity gap summary & exact percentiles (>= 1d)
 │   └── 03_users_inactive_90plus_days.sql            # BigQuery SQL: DDL for users_inactive_90plus_days table
 ├── data/
-│   ├── yearly_record_counts_2006_2017.csv           # Yearly record counts (12 rows)
+│   ├── yearly_record_counts_2006_2017.csv           # Yearly record & distinct user counts (12 rows)
 │   ├── inactivity_gap_distribution_1_to_180d.csv    # Daily user & gap counts for inactive_days 1..180
 │   └── users_inactive_90plus_days.csv               # All 853 users who returned after >= 90 inactive days
 └── assets/
     ├── figures/                                     # Crisp SVG vector charts & 300-DPI PNG exports
     │   ├── yearly_record_counts.{svg,png}
+    │   ├── yearly_distinct_users.{svg,png}
     │   ├── inactivity_gap_distribution_linear.{svg,png}
     │   ├── inactivity_gap_distribution_log.{svg,png}
     │   └── inactivity_gap_distribution_tail.{svg,png}
@@ -35,11 +36,14 @@ ListenBrainz/
 ## Executive Summary of Findings
 
 ### Step 1: Dataset Scope (2006–2017)
-- Out of **146,914,257** total records in `listenbrainz1.listenbrainz.listen_analysis`, **138,695,873 records (94.41%)** fall within the **2006–2017 (inclusive)** analysis window.
+- Out of **146,914,257** total records in `listenbrainz1.listenbrainz.listen_analysis`, **138,695,873 records (94.41%)** across **2,039 distinct users** fall within the **2006–2017 (inclusive)** analysis window.
 - Annual listening volume grew steadily every year from **4.43M** listens in 2006 to **16.81M** listens in 2017.
+- Annual distinct active users grew more than **4.2x** (+329.3%), rising every consecutive year from **441** users in 2006 to **1,893** users in 2017.
 - Full details: [`docs/01_data_scope_and_record_counts.md`](docs/01_data_scope_and_record_counts.md)
 
 ![ListenBrainz Yearly Listening Volume (2006–2017)](assets/figures/yearly_record_counts.svg)
+
+![ListenBrainz Yearly Distinct User Count (2006–2017)](assets/figures/yearly_distinct_users.svg)
 
 ---
 
